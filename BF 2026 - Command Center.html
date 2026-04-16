@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BF 2026 — Command Center</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface2: #1c2128;
+    --border: #30363d;
+    --text: #e6edf3;
+    --subtext: #8b949e;
+    --red: #f85149;
+    --orange: #e3892b;
+    --yellow: #d29922;
+    --green: #3fb950;
+    --blue: #388bfd;
+    --purple: #bc8cff;
+    --bf-red: #c0392b;
+    --bf-red-light: #e74c3c;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; font-size: 14px; line-height: 1.5; }
+
+  /* ── HEADER ── */
+  .header { background: linear-gradient(135deg, #1a0a0a 0%, #2d0f0f 50%, #1a0a0a 100%); border-bottom: 1px solid #4a1515; padding: 24px 32px; display: flex; align-items: center; justify-content: space-between; }
+  .header-left h1 { font-size: 26px; font-weight: 700; letter-spacing: -0.5px; }
+  .header-left h1 span { color: var(--bf-red-light); }
+  .header-left p { color: var(--subtext); margin-top: 2px; font-size: 13px; }
+  .header-right { display: flex; gap: 24px; align-items: center; }
+  .countdown-box { text-align: center; background: rgba(192,57,43,0.15); border: 1px solid rgba(192,57,43,0.4); border-radius: 10px; padding: 12px 20px; }
+  .countdown-box .days { font-size: 38px; font-weight: 800; color: var(--bf-red-light); line-height: 1; }
+  .countdown-box .label { font-size: 11px; color: var(--subtext); text-transform: uppercase; letter-spacing: 1px; margin-top: 2px; }
+  .cw-box { text-align: center; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 20px; }
+  .cw-box .cw-num { font-size: 28px; font-weight: 700; color: var(--blue); line-height: 1; }
+  .cw-box .label { font-size: 11px; color: var(--subtext); text-transform: uppercase; letter-spacing: 1px; margin-top: 2px; }
+  .phase-box { text-align: center; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 20px; }
+  .phase-box .phase-name { font-size: 15px; font-weight: 600; line-height: 1.2; }
+  .phase-box .phase-range { font-size: 11px; color: var(--subtext); margin-top: 4px; }
+
+  /* ── LAYOUT ── */
+  .container { max-width: 1400px; margin: 0 auto; padding: 24px 32px; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; }
+  .section { margin-bottom: 28px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+  .card-header { padding: 14px 18px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+  .card-header h2 { font-size: 14px; font-weight: 600; }
+  .card-header .badge { font-size: 11px; background: var(--surface2); border: 1px solid var(--border); border-radius: 20px; padding: 2px 10px; color: var(--subtext); }
+  .card-body { padding: 18px; }
+
+  /* ── STATS ROW ── */
+  .stats-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; margin-bottom: 28px; }
+  .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; }
+  .stat-card .stat-value { font-size: 28px; font-weight: 700; line-height: 1; }
+  .stat-card .stat-label { font-size: 11px; color: var(--subtext); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .stat-card .stat-sub { font-size: 12px; color: var(--subtext); margin-top: 6px; }
+
+  /* ── PROGRESS BAR ── */
+  .progress-wrap { margin-top: 8px; }
+  .progress-bar { height: 6px; background: var(--surface2); border-radius: 3px; overflow: hidden; margin-top: 4px; }
+  .progress-fill { height: 100%; border-radius: 3px; background: var(--green); transition: width 0.3s; }
+
+  /* ── PHASE TIMELINE ── */
+  .phase-timeline { display: flex; gap: 0; margin-bottom: 28px; border-radius: 10px; overflow: hidden; border: 1px solid var(--border); }
+  .phase-segment { flex: 1; padding: 12px 16px; position: relative; }
+  .phase-segment.active { background: rgba(56,139,253,0.1); border-left: 3px solid var(--blue); }
+  .phase-segment.upcoming { background: var(--surface); }
+  .phase-segment.completed { background: rgba(63,185,80,0.08); border-left: 3px solid var(--green); }
+  .phase-segment h3 { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+  .phase-segment .cw-range { font-size: 11px; color: var(--subtext); margin-top: 2px; }
+  .phase-segment .phase-status { font-size: 10px; font-weight: 600; margin-top: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .phase-segment.active .phase-status { color: var(--blue); }
+  .phase-segment.completed .phase-status { color: var(--green); }
+  .phase-segment.upcoming .phase-status { color: var(--subtext); }
+
+  /* ── DELIVERABLES TABLE ── */
+  .del-table { width: 100%; border-collapse: collapse; }
+  .del-table th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--subtext); padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--surface); }
+  .del-table td { padding: 9px 12px; border-bottom: 1px solid #1e2631; vertical-align: middle; }
+  .del-table tr:last-child td { border-bottom: none; }
+  .del-table tr:hover td { background: rgba(255,255,255,0.02); }
+  .del-id { color: var(--subtext); font-size: 12px; width: 30px; }
+  .del-cw { font-weight: 600; font-size: 13px; width: 60px; }
+  .del-cw.overdue { color: var(--red); }
+  .del-cw.urgent { color: var(--orange); }
+  .del-cw.upcoming { color: var(--yellow); }
+  .del-cw.future { color: var(--subtext); }
+  .del-name { font-size: 13px; }
+  .del-team { font-size: 11px; color: var(--subtext); }
+  .del-date { font-size: 11px; color: var(--subtext); width: 60px; }
+  .status-btn { border: none; border-radius: 20px; padding: 3px 12px; font-size: 11px; font-weight: 600; cursor: pointer; white-space: nowrap; transition: opacity 0.2s; }
+  .status-btn:hover { opacity: 0.8; }
+  .s-pending    { background: rgba(139,148,158,0.15); color: #8b949e; border: 1px solid #30363d; }
+  .s-inprogress { background: rgba(56,139,253,0.15);  color: #388bfd; border: 1px solid rgba(56,139,253,0.4); }
+  .s-done       { background: rgba(63,185,80,0.15);   color: #3fb950; border: 1px solid rgba(63,185,80,0.4); }
+  .s-atrisk     { background: rgba(227,137,43,0.15);  color: #e3892b; border: 1px solid rgba(227,137,43,0.4); }
+  .s-overdue    { background: rgba(248,81,73,0.15);   color: #f85149; border: 1px solid rgba(248,81,73,0.4); }
+  .table-scroll { max-height: 520px; overflow-y: auto; }
+
+  /* ── PRIORITY DOTS ── */
+  .pri { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 6px; flex-shrink: 0; }
+  .pri-urgent  { background: var(--red); }
+  .pri-high    { background: var(--orange); }
+  .pri-medium  { background: var(--yellow); }
+  .pri-planned { background: var(--subtext); }
+
+  /* ── RISK TABLE ── */
+  .risk-table { width: 100%; border-collapse: collapse; }
+  .risk-table th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--subtext); padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--border); }
+  .risk-table td { padding: 9px 12px; border-bottom: 1px solid #1e2631; vertical-align: top; font-size: 12px; }
+  .risk-table tr:last-child td { border-bottom: none; }
+  .risk-pill { display: inline-block; border-radius: 4px; padding: 1px 8px; font-size: 10px; font-weight: 700; text-transform: uppercase; }
+  .rh { background: rgba(248,81,73,0.15); color: var(--red); }
+  .rm { background: rgba(210,153,34,0.15); color: var(--yellow); }
+  .rl { background: rgba(63,185,80,0.15); color: var(--green); }
+
+  /* ── SC ASSUMPTIONS ── */
+  .lt-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px; }
+  .lt-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 14px; }
+  .lt-card .origin { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--subtext); margin-bottom: 6px; }
+  .lt-card .mode { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+  .lt-card .weeks { font-size: 22px; font-weight: 800; line-height: 1; }
+  .lt-card .weeks span { font-size: 13px; font-weight: 400; color: var(--subtext); }
+  .lt-card .cost-note { font-size: 11px; margin-top: 6px; }
+  .lt-sea   { border-left: 3px solid var(--blue); }
+  .lt-rail  { border-left: 3px solid var(--orange); }
+  .lt-eu    { border-left: 3px solid var(--green); }
+
+  .po-timeline { margin-top: 16px; }
+  .po-timeline h4 { font-size: 12px; color: var(--subtext); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; }
+  .po-item { display: flex; align-items: flex-start; gap: 12px; padding: 8px 0; border-bottom: 1px solid #1e2631; }
+  .po-item:last-child { border-bottom: none; }
+  .po-cw { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 4px 10px; font-size: 12px; font-weight: 700; white-space: nowrap; min-width: 50px; text-align: center; }
+  .po-cw.china-sea  { color: var(--blue); border-color: rgba(56,139,253,0.3); }
+  .po-cw.china-rail { color: var(--orange); border-color: rgba(227,137,43,0.3); }
+  .po-cw.eu         { color: var(--green); border-color: rgba(63,185,80,0.3); }
+  .po-detail .po-name { font-size: 13px; font-weight: 500; }
+  .po-detail .po-sub  { font-size: 11px; color: var(--subtext); margin-top: 1px; }
+
+  /* ── UPCOMING ── */
+  .upcoming-item { display: flex; gap: 12px; align-items: flex-start; padding: 10px 0; border-bottom: 1px solid #1e2631; }
+  .upcoming-item:last-child { border-bottom: none; }
+  .upcoming-cw { font-size: 11px; font-weight: 700; color: var(--orange); background: rgba(227,137,43,0.1); border: 1px solid rgba(227,137,43,0.2); border-radius: 6px; padding: 3px 8px; white-space: nowrap; min-width: 42px; text-align: center; }
+  .upcoming-name { font-size: 13px; font-weight: 500; }
+  .upcoming-team { font-size: 11px; color: var(--subtext); margin-top: 1px; }
+
+  /* ── AI WORKFLOWS ── */
+  .ai-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .ai-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 14px; }
+  .ai-card .ai-icon { font-size: 20px; margin-bottom: 8px; }
+  .ai-card .ai-title { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+  .ai-card .ai-desc { font-size: 12px; color: var(--subtext); line-height: 1.5; }
+  .ai-card .ai-prompt { margin-top: 8px; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 8px; font-size: 11px; color: #a5d6ff; font-family: monospace; line-height: 1.4; }
+
+  /* ── NOTICE BAR ── */
+  .notice { background: rgba(210,153,34,0.1); border: 1px solid rgba(210,153,34,0.3); border-radius: 8px; padding: 10px 16px; font-size: 12px; color: var(--yellow); margin-bottom: 20px; }
+  .notice strong { font-weight: 600; }
+
+  /* ── FOOTER ── */
+  .footer { border-top: 1px solid var(--border); padding: 16px 32px; display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: var(--subtext); }
+  .footer .save-note { font-style: italic; }
+
+  /* ── SCROLLBAR ── */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════ HEADER ═══════════════ -->
+<div class="header">
+  <div class="header-left">
+    <h1>🖤 Black Friday <span>2026</span> — Command Center</h1>
+    <p>Owner: Vitor Campos &nbsp;·&nbsp; BF Day: Friday, November 27, 2026 (CW48) &nbsp;·&nbsp; Campaign live: CW44</p>
+  </div>
+  <div class="header-right">
+    <div class="countdown-box">
+      <div class="days" id="daysLeft">—</div>
+      <div class="label">Days to BF</div>
+    </div>
+    <div class="cw-box">
+      <div class="cw-num" id="currentCW">—</div>
+      <div class="label">Current CW</div>
+    </div>
+    <div class="phase-box">
+      <div class="phase-name" id="currentPhase">—</div>
+      <div class="phase-range" id="currentPhaseRange">—</div>
+    </div>
+  </div>
+</div>
+
+<div class="container">
+
+  <!-- ═══════════════ NOTICE ═══════════════ -->
+  <div class="notice" id="noticeBar">
+    <strong>⚡ Status update:</strong> Click any status badge in the Deliverables table to cycle through statuses. To persist changes between sessions, ask AI: <em>"Update the Command Center HTML: set deliverable #1 to Done."</em>
+  </div>
+
+  <!-- ═══════════════ STATS ROW ═══════════════ -->
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-value" id="statDays" style="color:var(--bf-red-light)">—</div>
+      <div class="stat-label">Days to BF Day</div>
+      <div class="stat-sub">Nov 27, 2026</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="statWeeksToCampaign" style="color:var(--orange)">—</div>
+      <div class="stat-label">Weeks to Campaign Live</div>
+      <div class="stat-sub">CW44 · Oct 26, 2026</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="statDone" style="color:var(--green)">0 / 30</div>
+      <div class="stat-label">Deliverables Complete</div>
+      <div class="progress-wrap">
+        <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="statAtRisk" style="color:var(--orange)">0</div>
+      <div class="stat-label">At Risk / Overdue</div>
+      <div class="stat-sub" id="statAtRiskSub">All on track</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="statNext" style="color:var(--blue)">—</div>
+      <div class="stat-label">Next Deadline</div>
+      <div class="stat-sub" id="statNextSub">—</div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ PHASE TIMELINE ═══════════════ -->
+  <div class="phase-timeline">
+    <div class="phase-segment" id="phase1seg">
+      <h3>Phase 1 · Foundation</h3>
+      <div class="cw-range">CW16 – CW26 &nbsp;·&nbsp; Apr – Jun 2026</div>
+      <div class="phase-status" id="phase1status">▶ CURRENT</div>
+    </div>
+    <div class="phase-segment upcoming" id="phase2seg">
+      <h3>Phase 2 · Capacity Planning</h3>
+      <div class="cw-range">CW27 – CW40 &nbsp;·&nbsp; Jul – Oct 2026</div>
+      <div class="phase-status" id="phase2status">UPCOMING</div>
+    </div>
+    <div class="phase-segment upcoming" id="phase3seg">
+      <h3>Phase 3 · Execution & Steering</h3>
+      <div class="cw-range">CW41 – CW50 &nbsp;·&nbsp; Oct – Dec 2026</div>
+      <div class="phase-status" id="phase3status">UPCOMING</div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ DELIVERABLES + UPCOMING ═══════════════ -->
+  <div class="grid-2 section">
+
+    <!-- Deliverables Table -->
+    <div class="card" style="grid-column: 1 / 2;">
+      <div class="card-header">
+        <h2>📋 Deliverables Tracker</h2>
+        <span class="badge" id="delivBadge">30 total</span>
+      </div>
+      <div class="table-scroll">
+        <table class="del-table" id="delTable">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>CW</th>
+              <th>Date</th>
+              <th>Deliverable</th>
+              <th>Team</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="delBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Right column: upcoming + risks -->
+    <div style="display:flex; flex-direction:column; gap:20px;">
+
+      <!-- Upcoming next 4 CWs -->
+      <div class="card">
+        <div class="card-header"><h2>⏰ Coming Up Next</h2><span class="badge">Next 4 deadlines</span></div>
+        <div class="card-body" id="upcomingBody"></div>
+      </div>
+
+      <!-- Risk Register -->
+      <div class="card">
+        <div class="card-header"><h2>⚠️ Risk Register</h2><span class="badge">Top risks</span></div>
+        <div style="overflow-x:auto">
+          <table class="risk-table">
+            <thead><tr><th>Risk</th><th>Like.</th><th>Impact</th></tr></thead>
+            <tbody id="riskBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ═══════════════ SC ASSUMPTIONS ═══════════════ -->
+  <div class="card section">
+    <div class="card-header"><h2>🚢 Supply Chain Assumptions</h2><span class="badge">Updated Apr 2026 · validate at CW20 deliverable</span></div>
+    <div class="card-body">
+      <div class="lt-cards">
+        <div class="lt-card lt-sea">
+          <div class="origin">🇨🇳 China</div>
+          <div class="mode">Sea (Standard)</div>
+          <div class="weeks">14–15 <span>weeks</span></div>
+          <div class="cost-note" style="color:var(--blue)">Baseline cost · default mode for all China POs</div>
+        </div>
+        <div class="lt-card lt-rail">
+          <div class="origin">🇨🇳 China</div>
+          <div class="mode">Rail (Contingency)</div>
+          <div class="weeks">9–10 <span>weeks</span></div>
+          <div class="cost-note" style="color:var(--orange)">⚡ 2–3× sea cost · requires explicit sign-off per shipment</div>
+        </div>
+        <div class="lt-card lt-eu">
+          <div class="origin">🇪🇺 EU</div>
+          <div class="mode">Truck (Standard)</div>
+          <div class="weeks">4–6 <span>weeks</span></div>
+          <div class="cost-note" style="color:var(--green)">Fastest option · enables late corrections for EU-sourced SKUs</div>
+        </div>
+      </div>
+
+      <div class="po-timeline">
+        <h4>PO Deadline Calendar (target inbound completion: CW43)</h4>
+        <div class="po-item">
+          <div class="po-cw china-sea">CW26</div>
+          <div class="po-detail">
+            <div class="po-name">🇨🇳 China Sea — 1st Round</div>
+            <div class="po-sub">Jun 22, 2026 · Early stock build-up; stock arrives CW40–41 · aligns with Replenishment Needs deliverable</div>
+          </div>
+        </div>
+        <div class="po-item">
+          <div class="po-cw china-sea">CW29</div>
+          <div class="po-detail">
+            <div class="po-name">🇨🇳 China Sea — 2nd Round (Hard Deadline)</div>
+            <div class="po-sub">Jul 20, 2026 · Final BF ramp-up stock; arrives CW43–44 · <strong style="color:var(--red)">must not slip</strong></div>
+          </div>
+        </div>
+        <div class="po-item">
+          <div class="po-cw china-rail">CW34</div>
+          <div class="po-detail">
+            <div class="po-name">🇨🇳 China Rail — Contingency Buffer</div>
+            <div class="po-sub">Aug 17, 2026 · If sea quantities need topping up · cost sign-off required</div>
+          </div>
+        </div>
+        <div class="po-item">
+          <div class="po-cw eu">CW37–38</div>
+          <div class="po-detail">
+            <div class="po-name">🇪🇺 EU — Main Round</div>
+            <div class="po-sub">Sep 7–14, 2026 · Planned EU replenishment; aligned with updated forecast deliverable</div>
+          </div>
+        </div>
+        <div class="po-item">
+          <div class="po-cw china-rail">CW38</div>
+          <div class="po-detail">
+            <div class="po-name">🇨🇳 China Rail — Emergency</div>
+            <div class="po-sub">Sep 14, 2026 · Last resort for BF week stock; arrives CW47–48 · <strong style="color:var(--red)">cost sign-off mandatory</strong></div>
+          </div>
+        </div>
+        <div class="po-item">
+          <div class="po-cw eu">CW42–43</div>
+          <div class="po-detail">
+            <div class="po-name">🇪🇺 EU — Top-up / Emergency</div>
+            <div class="po-sub">Oct 12–18, 2026 · Late corrections for BF week · only feasible for EU-sourced SKUs</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top:16px; padding:12px; background:rgba(248,81,73,0.08); border:1px solid rgba(248,81,73,0.2); border-radius:8px; font-size:12px;">
+        ⚠️ <strong>Single-sourced China products</strong> are highest risk — no alternative supplier. Must be fully mapped at Supplier Allocation (CW20) and require earlier POs + larger safety buffers. Ask AI: <em>"Which of our product groups are single-sourced from China and what is the risk?"</em>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ AI WORKFLOWS ═══════════════ -->
+  <div class="card section">
+    <div class="card-header"><h2>🤖 AI Workflows</h2><span class="badge">Use with Cowork / Claude</span></div>
+    <div class="card-body">
+      <div class="ai-cards">
+        <div class="ai-card">
+          <div class="ai-icon">📝</div>
+          <div class="ai-title">Meeting Transcript Summary</div>
+          <div class="ai-desc">Upload Teams transcript to the right CW folder, then ask:</div>
+          <div class="ai-prompt">"Summarise this BF meeting. Extract: decisions, action items with owners, risks flagged, and parking lot items."</div>
+        </div>
+        <div class="ai-card">
+          <div class="ai-icon">📡</div>
+          <div class="ai-title">Weekly Risk Radar</div>
+          <div class="ai-desc">Scan deliverable statuses and flag issues:</div>
+          <div class="ai-prompt">"Which BF 2026 deliverables are overdue or at risk? Summarise the top 3 things I should act on this week."</div>
+        </div>
+        <div class="ai-card">
+          <div class="ai-icon">📰</div>
+          <div class="ai-title">Newsletter Generation</div>
+          <div class="ai-desc">Every 4 weeks (CW26, 30, 34, 38, 42) — AI drafts for your approval:</div>
+          <div class="ai-prompt">"Draft the BF Week [X] newsletter for Ops Heads: progress, decisions, risks, what's coming next."</div>
+        </div>
+        <div class="ai-card">
+          <div class="ai-icon">📊</div>
+          <div class="ai-title">Deck Prep</div>
+          <div class="ai-desc">For Monthly Touch Points and Bi-Weekly OPS Reviews:</div>
+          <div class="ai-prompt">"Read the latest stock projection and WH capacity files. Summarise key numbers and flag anomalies vs last version."</div>
+        </div>
+        <div class="ai-card">
+          <div class="ai-icon">📈</div>
+          <div class="ai-title">Forecast Change Tracker</div>
+          <div class="ai-desc">Compare forecast snapshots (CW19, 25, 27, 32, 36):</div>
+          <div class="ai-prompt">"Compare the CW32 forecast snapshot to the CW27 frozen version. What changed? Which categories moved most?"</div>
+        </div>
+        <div class="ai-card">
+          <div class="ai-icon">🔍</div>
+          <div class="ai-title">SC Assumption Validation</div>
+          <div class="ai-desc">When supplier data arrives, validate against plan:</div>
+          <div class="ai-prompt">"Check the supplier capacity file against our BF 2026 PO plan. Are there any gaps or bottlenecks in CW43–48?"</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /container -->
+
+<div class="footer">
+  <span>BF 2026 Command Center &nbsp;·&nbsp; Owner: Vitor Campos &nbsp;·&nbsp; Emma Operations</span>
+  <span class="save-note">Status changes are in-memory only. To persist: ask AI to update this file, or edit the <code>deliverables</code> array in the script.</span>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     DATA & LOGIC
+═══════════════════════════════════════════════ -->
+<script>
+
+// ── KEY DATES ──────────────────────────────────
+const BF_DAY       = new Date('2026-11-27');
+const CAMPAIGN_CW  = new Date('2026-10-26'); // CW44
+const TODAY        = new Date();
+
+// ── DELIVERABLES DATA ──────────────────────────
+// STATUS options: 'pending' | 'inprogress' | 'done' | 'atrisk' | 'overdue'
+// ↓ Edit statuses here to persist between opens ↓
+const deliverables = [
+  { id:1,  cw:18, date:'Apr 27', name:'Project plan in Jira',                   team:'BF Squad',         status:'inprogress', priority:'urgent'  },
+  { id:2,  cw:19, date:'May 4',  name:'PLC product portfolio',                   team:'Product Success',  status:'pending',    priority:'high'    },
+  { id:3,  cw:19, date:'May 4',  name:'Sales forecast — category level',         team:'Countries / S&OP', status:'pending',    priority:'high'    },
+  { id:4,  cw:20, date:'May 11', name:'Supplier allocation',                     team:'SPQ',              status:'pending',    priority:'high'    },
+  { id:5,  cw:21, date:'May 18', name:'WH capacity projection',                  team:'S&OP',             status:'pending',    priority:'high'    },
+  { id:6,  cw:24, date:'Jun 8',  name:'WH capacity plan',                        team:'SC Network',       status:'pending',    priority:'medium'  },
+  { id:7,  cw:25, date:'Jun 15', name:'BF product portfolio (SKU level)',         team:'Product Success',  status:'pending',    priority:'medium'  },
+  { id:8,  cw:25, date:'Jun 15', name:'Unconstrained forecast',                  team:'Countries / S&OP', status:'pending',    priority:'medium'  },
+  { id:9,  cw:26, date:'Jun 22', name:'Summertime POCs',                         team:'All Ops teams',    status:'pending',    priority:'medium'  },
+  { id:10, cw:26, date:'Jun 22', name:'Stock development projection',            team:'S&OP',             status:'pending',    priority:'medium'  },
+  { id:11, cw:26, date:'Jun 22', name:'Updated forecast',                        team:'Countries / S&OP', status:'pending',    priority:'medium'  },
+  { id:12, cw:26, date:'Jun 22', name:'Production capacity confirmation',        team:'Production',       status:'pending',    priority:'medium'  },
+  { id:13, cw:26, date:'Jun 22', name:'Pre-book carriers (last mile)',           team:'Fulfilment',       status:'pending',    priority:'medium'  },
+  { id:14, cw:26, date:'Jun 22', name:'Transportation plan — containers',        team:'Transportation',   status:'pending',    priority:'medium'  },
+  { id:15, cw:27, date:'Jun 29', name:'Constrained forecast (frozen)',           team:'Countries / S&OP', status:'pending',    priority:'medium'  },
+  { id:16, cw:28, date:'Jul 6',  name:'Initial stock development projection',   team:'S&OP',             status:'pending',    priority:'planned' },
+  { id:17, cw:31, date:'Jul 27', name:'Transportation plan — trucks',            team:'Transportation',   status:'pending',    priority:'planned' },
+  { id:18, cw:32, date:'Aug 3',  name:'WH inbound plan',                        team:'Fulfilment',       status:'pending',    priority:'planned' },
+  { id:19, cw:32, date:'Aug 3',  name:'Stock development projection (–12 wks)', team:'S&OP',             status:'pending',    priority:'planned' },
+  { id:20, cw:33, date:'Aug 10', name:'Last-mile capacity plan',                team:'Fulfilment',       status:'pending',    priority:'planned' },
+  { id:21, cw:33, date:'Aug 10', name:'Returns capacity plan',                  team:'R2SL',             status:'pending',    priority:'planned' },
+  { id:22, cw:33, date:'Aug 10', name:'Refunds capacity plan',                  team:'AR D2C',           status:'pending',    priority:'planned' },
+  { id:23, cw:34, date:'Aug 17', name:'Customer Excellence capacity plan',      team:'CE',               status:'pending',    priority:'planned' },
+  { id:24, cw:36, date:'Sep 1',  name:'Stock development projection (–8 wks)',  team:'S&OP',             status:'pending',    priority:'planned' },
+  { id:25, cw:38, date:'Sep 14', name:'BF steering plan',                       team:'Order Management', status:'pending',    priority:'planned' },
+  { id:26, cw:39, date:'Sep 21', name:'Updated last-mile capacity plan',        team:'Fulfilment',       status:'pending',    priority:'planned' },
+  { id:27, cw:39, date:'Sep 21', name:'Updated returns capacity plan',          team:'R2SL',             status:'pending',    priority:'planned' },
+  { id:28, cw:40, date:'Sep 28', name:'Stock development projection (–4 wks)',  team:'S&OP',             status:'pending',    priority:'planned' },
+  { id:29, cw:41, date:'Oct 5',  name:'BF steering meetings begin',             team:'Order Management', status:'pending',    priority:'planned' },
+  { id:30, cw:45, date:'Nov 2',  name:'Updated refunds capacity plan',          team:'AR D2C',           status:'pending',    priority:'planned' },
+];
+
+// ── RISKS DATA ─────────────────────────────────
+const risks = [
+  { name:'Forecast changes after CW27 freeze',         like:'H', impact:'H' },
+  { name:'Delayed preparation start',                   like:'M', impact:'H' },
+  { name:'WH capacity at limit (Benedach, FR)',         like:'M', impact:'H' },
+  { name:'Single-sourced CN SKU supply disruption',     like:'M', impact:'H' },
+  { name:'Supplier capacity bottleneck (AQ_PT, CT_DE)', like:'M', impact:'H' },
+  { name:'CE understaffed due to late forecast lock',   like:'M', impact:'H' },
+  { name:'Inbound spike from loose-loaded containers',  like:'M', impact:'M' },
+  { name:'Cover availability issues on key SKUs',       like:'M', impact:'M' },
+  { name:'Missing deliverable files (no docs)',         like:'H', impact:'M' },
+  { name:'POC unavailability during summer',            like:'H', impact:'H' },
+];
+
+// ── STATUS CYCLE ───────────────────────────────
+const statusCycle = ['pending','inprogress','done','atrisk','overdue'];
+const statusLabel  = { pending:'Not Started', inprogress:'In Progress', done:'Done', atrisk:'At Risk', overdue:'Overdue' };
+const statusClass  = { pending:'s-pending', inprogress:'s-inprogress', done:'s-done', atrisk:'s-atrisk', overdue:'s-overdue' };
+
+// ── CALCULATE CW ───────────────────────────────
+function getCW(date) {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const dayNum = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+}
+
+// ── INIT DASHBOARD ────────────────────────────
+function init() {
+  // Countdown & CW
+  const daysLeft = Math.ceil((BF_DAY - TODAY) / 86400000);
+  const weeksToC = Math.ceil((CAMPAIGN_CW - TODAY) / 604800000);
+  const currentCW = getCW(TODAY);
+
+  document.getElementById('daysLeft').textContent = daysLeft;
+  document.getElementById('currentCW').textContent = 'CW' + currentCW;
+  document.getElementById('statDays').textContent = daysLeft;
+  document.getElementById('statWeeksToCampaign').textContent = weeksToC > 0 ? weeksToC + ' wks' : 'LIVE';
+
+  // Phase
+  let phaseName, phaseRange;
+  if (currentCW <= 26)      { phaseName = 'Phase 1 · Foundation';          phaseRange = 'CW16–26';  }
+  else if (currentCW <= 40) { phaseName = 'Phase 2 · Capacity Planning';   phaseRange = 'CW27–40';  }
+  else                      { phaseName = 'Phase 3 · Execution';            phaseRange = 'CW41–50';  }
+  document.getElementById('currentPhase').textContent = phaseName;
+  document.getElementById('currentPhaseRange').textContent = phaseRange;
+
+  // Phase segment styling
+  const [s1, s2, s3] = ['phase1seg','phase2seg','phase3seg'].map(id => document.getElementById(id));
+  if (currentCW <= 26) {
+    s1.className = 'phase-segment active'; document.getElementById('phase1status').textContent = '▶ CURRENT';
+    s2.className = 'phase-segment upcoming'; document.getElementById('phase2status').textContent = 'UPCOMING';
+    s3.className = 'phase-segment upcoming'; document.getElementById('phase3status').textContent = 'UPCOMING';
+  } else if (currentCW <= 40) {
+    s1.className = 'phase-segment completed'; document.getElementById('phase1status').textContent = '✓ COMPLETED';
+    s2.className = 'phase-segment active';    document.getElementById('phase2status').textContent = '▶ CURRENT';
+    s3.className = 'phase-segment upcoming';  document.getElementById('phase3status').textContent = 'UPCOMING';
+  } else {
+    s1.className = 'phase-segment completed'; document.getElementById('phase1status').textContent = '✓ COMPLETED';
+    s2.className = 'phase-segment completed'; document.getElementById('phase2status').textContent = '✓ COMPLETED';
+    s3.className = 'phase-segment active';    document.getElementById('phase3status').textContent = '▶ CURRENT';
+  }
+
+  renderDeliverables(currentCW);
+  renderRisks();
+  renderUpcoming(currentCW);
+}
+
+// ── RENDER DELIVERABLES ───────────────────────
+function renderDeliverables(currentCW) {
+  const body = document.getElementById('delBody');
+  body.innerHTML = '';
+
+  let done = 0, atRisk = 0;
+  const priClass = { urgent:'pri-urgent', high:'pri-high', medium:'pri-medium', planned:'pri-planned' };
+
+  deliverables.forEach(d => {
+    if (d.status === 'done') done++;
+    if (d.status === 'atrisk' || d.status === 'overdue') atRisk++;
+
+    const cwDiff = d.cw - currentCW;
+    let cwClass;
+    if (cwDiff < 0 && d.status !== 'done') cwClass = 'overdue';
+    else if (cwDiff <= 2) cwClass = 'urgent';
+    else if (cwDiff <= 5) cwClass = 'upcoming';
+    else cwClass = 'future';
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="del-id">${d.id}</td>
+      <td class="del-cw ${cwClass}">CW${d.cw}</td>
+      <td class="del-date">${d.date}</td>
+      <td class="del-name">
+        <span class="pri ${priClass[d.priority]}"></span>${d.name}
+      </td>
+      <td class="del-team">${d.team}</td>
+      <td>
+        <button class="status-btn ${statusClass[d.status]}" data-id="${d.id}" onclick="cycleStatus(${d.id})">
+          ${statusLabel[d.status]}
+        </button>
+      </td>
+    `;
+    body.appendChild(tr);
+  });
+
+  // Update stats
+  const pct = Math.round((done / deliverables.length) * 100);
+  document.getElementById('statDone').textContent = `${done} / ${deliverables.length}`;
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('statAtRisk').textContent = atRisk;
+  document.getElementById('statAtRiskSub').textContent = atRisk === 0 ? 'All on track ✓' : `${atRisk} need attention`;
+
+  // Next deadline
+  const next = deliverables.filter(d => d.status !== 'done' && d.cw >= currentCW).sort((a,b) => a.cw - b.cw)[0];
+  if (next) {
+    document.getElementById('statNext').textContent = 'CW' + next.cw;
+    document.getElementById('statNextSub').textContent = next.name.substring(0, 28) + (next.name.length > 28 ? '…' : '');
+  }
+}
+
+// ── CYCLE STATUS ──────────────────────────────
+function cycleStatus(id) {
+  const d = deliverables.find(x => x.id === id);
+  const idx = statusCycle.indexOf(d.status);
+  d.status = statusCycle[(idx + 1) % statusCycle.length];
+  const currentCW = getCW(TODAY);
+  renderDeliverables(currentCW);
+  renderUpcoming(currentCW);
+}
+
+// ── RENDER RISKS ──────────────────────────────
+function renderRisks() {
+  const body = document.getElementById('riskBody');
+  const pillClass = { H: 'rh', M: 'rm', L: 'rl' };
+  body.innerHTML = risks.map(r => `
+    <tr>
+      <td>${r.name}</td>
+      <td><span class="risk-pill ${pillClass[r.like]}">${r.like}</span></td>
+      <td><span class="risk-pill ${pillClass[r.impact]}">${r.impact}</span></td>
+    </tr>
+  `).join('');
+}
+
+// ── RENDER UPCOMING ───────────────────────────
+function renderUpcoming(currentCW) {
+  const body = document.getElementById('upcomingBody');
+  const next4 = deliverables
+    .filter(d => d.status !== 'done' && d.cw >= currentCW)
+    .sort((a,b) => a.cw - b.cw)
+    .slice(0, 4);
+
+  body.innerHTML = next4.map(d => `
+    <div class="upcoming-item">
+      <div class="upcoming-cw">CW${d.cw}</div>
+      <div>
+        <div class="upcoming-name">${d.name}</div>
+        <div class="upcoming-team">${d.team} &nbsp;·&nbsp; ${d.date}</div>
+      </div>
+    </div>
+  `).join('') || '<p style="color:var(--subtext);font-size:13px;">All upcoming deliverables complete 🎉</p>';
+}
+
+// ── RUN ───────────────────────────────────────
+init();
+</script>
+</body>
+</html>
